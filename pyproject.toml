@@ -1,0 +1,19 @@
+[project]
+name = "ai-assistant-benchs-public"
+version = "0.1.0"
+description = "Judge score aggregation from results/ review xlsx, bootstrap CI, and bar-chart notebook (scripts/ contains only those two CLIs)."
+requires-python = ">=3.11"
+dependencies = [
+    "matplotlib>=3.8.0",
+    "numpy>=1.26.0",
+    "openpyxl>=3.1.0",
+]
+
+[project.optional-dependencies]
+notebook = [
+    "jupyter>=1.0.0",
+    "ipykernel>=6.29.0",
+]
+
+[tool.uv]
+package = false
