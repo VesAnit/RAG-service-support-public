@@ -121,7 +121,146 @@ class JudgeScoreArtifactsBuilder:
         """Точка входа: пересобрать bootstrap JSON и вернуть путь к файлу."""
         return self._write_bootstrap_json()
 
-    # Чтение Excel
+    def _write_bootstrap_json(self) -> Path:
+        if not self._results.is_dir():
+            logger.error("Нет каталога results: %s", self._results)
+            sys.exit(1)
+
+        records = self._build_bootstrap_records()
+        path = (self._results / self._BOOTSTRAP_JSON).resolve()
+        _ = path.write_text(json.dumps(records, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        logger.info("Bootstrap CI: %s записей → %s", len(records), path)
+        return path
+
+    def _build_bootstrap_records(self) -> list[dict[str, object]]:
+        """Внешний цикл: (модель × режим) → gold + noise → четыре метрики каждый.
+
+        Единый random_generator передаётся через все вызовы, чтобы воспроизводимость
+        работала при фиксированном random_seed независимо от порядка операций.
+        """
+        random_generator = np.random.default_rng(self._random_seed)
+        records: list[dict[str, object]] = []
+
+        for model in self._MODELS:
+            for rag_mode in self._RAG_MODES:
+                gold_workbook_path = (
+                    self._results / model / "results_gold_bench" / f"{self._REVIEW_PREFIX}{rag_mode}.xlsx"
+                )
+                self._append_bootstrap_records(records, model, "gold", rag_mode, self._gold_rows(gold_workbook_path), random_generator)
+
+                noise_averaged_rows = self._noise_rows(model, rag_mode)
+                if not noise_averaged_rows:
+                    logger.warning(
+                        "Noise: пустое пересечение по bench_index для %s / %s — в JSON будут nan",
+                        model,
+                        rag_mode,
+                    )
+                self._append_bootstrap_records(records, model, "noise", rag_mode, noise_averaged_rows, random_generator)
+
+        records.sort(key=lambda record: (str(record["model"]), str(record["bench"]), str(record["mode"]), str(record["metric"])))
+        return records
+
+    def _gold_rows(self, workbook_path: Path) -> list[RowScores]:
+        """Все валидные строки из одного gold-файла в порядке следования.
+
+        Для gold bench_index не нужен: один прогон, одно наблюдение = одна строка.
+        """
+        valid_rows: list[RowScores] = []
+        for row in self._iter_generation_rows(workbook_path):
+            if not self._has_question(row):
+                continue
+            parsed_scores = self._parse_scores(row)
+            if parsed_scores is not None:
+                valid_rows.append(parsed_scores)
+        return valid_rows
+
+    def _noise_rows(self, model: str, rag_mode: str) -> list[RowScores]:
+        """Построить bootstrap-выборку для noise: одно наблюдение = один вопрос.
+
+        1. Читаем три noise-прогона в словари {bench_index: scores}.
+        2. Берём пересечение ключей — только вопросы, оценённые во всех трёх прогонах.
+        3. Для каждого вопроса и каждой метрики отдельно усредняем три значения.
+        Это убирает между-прогоновую дисперсию до bootstrap, не увеличивая n.
+        """
+        noise_bench_dir = self._results / model / "results_noise_bench"
+        per_run_scores = [
+            self._rows_indexed_by_bench(noise_bench_dir / run_dir / f"{self._REVIEW_PREFIX}{rag_mode}.xlsx")
+            for run_dir in self._NOISE_RUN_DIRS
+        ]
+
+        common_bench_indices = set(per_run_scores[0].keys())
+        for run_scores_by_index in per_run_scores[1:]:
+            common_bench_indices &= set(run_scores_by_index.keys())
+
+        if not common_bench_indices:
+            return []
+
+        averaged_rows: list[RowScores] = []
+        for question_index in sorted(common_bench_indices):
+            # scores_matrix: матрица (3 прогона × 4 метрики); mean по оси прогонов даёт 4 числа.
+            scores_matrix = np.array(
+                [per_run_scores[0][question_index], per_run_scores[1][question_index], per_run_scores[2][question_index]],
+                dtype=np.float64,
+            )
+            metric_means = np.mean(scores_matrix, axis=0)
+            averaged_rows.append(
+                (
+                    float(metric_means.flat[0]),
+                    float(metric_means.flat[1]),
+                    float(metric_means.flat[2]),
+                    float(metric_means.flat[3]),
+                )
+            )
+        return averaged_rows
+
+    def _append_bootstrap_records(
+        self,
+        output_records: list[dict[str, object]],
+        model: str,
+        bench: str,
+        rag_mode: str,
+        rows: list[RowScores],
+        random_generator: np.random.Generator,
+    ) -> None:
+        """Добавить четыре записи (по одной на метрику) для одной комбинации (модель, bench, режим).
+
+        Матрица (n × 4) нарезается по столбцам — каждый столбец идёт в _bootstrap_ci отдельно,
+        что обеспечивает независимые ДИ для каждой метрики при общем random_generator-состоянии.
+        """
+        scores_matrix = np.asarray(rows, dtype=np.float64) if rows else np.zeros((0, 4), dtype=np.float64)
+
+        for metric_index, metric_name in enumerate(self._METRIC_KEYS):
+            metric_column = scores_matrix[:, metric_index] if scores_matrix.size else np.zeros(0, dtype=np.float64)
+            output_records.append(
+                {
+                    "model": model,
+                    "bench": bench,
+                    "mode": rag_mode,
+                    "metric": metric_name,
+                    **self._bootstrap_ci(metric_column, random_generator),
+                    "n_bootstrap": self._num_bootstrap,
+                    "alpha": self._alpha,
+                }
+            )
+
+    def _rows_indexed_by_bench(self, workbook_path: Path) -> dict[int, RowScores]:
+        """Прочитать один noise-файл в словарь {bench_index: scores}.
+
+        При дублирующемся индексе сохраняется первая строка.
+        """
+        scores_by_bench_index: dict[int, RowScores] = {}
+        for row in self._iter_generation_rows(workbook_path):
+            if not self._has_question(row):
+                continue
+            question_index = self._bench_index(row[self._COL_BENCH_INDEX - 1].value)
+            if question_index is None:
+                continue
+            parsed_scores = self._parse_scores(row)
+            if parsed_scores is None:
+                continue
+            if question_index not in scores_by_bench_index:
+                scores_by_bench_index[question_index] = parsed_scores
+        return scores_by_bench_index
 
     def _iter_generation_rows(self, workbook_path: Path) -> Iterator[tuple[Cell | MergedCell, ...]]:
         """Генератор строк листа «Оценка_генерации» начиная со второй (первая — заголовок).
@@ -153,20 +292,20 @@ class JudgeScoreArtifactsBuilder:
         if isinstance(raw, float):
             if not raw.is_integer():
                 return None
-            i = int(raw)
-            return i if i > 0 else None
+            integer_value = int(raw)
+            return integer_value if integer_value > 0 else None
         if isinstance(raw, str):
             stripped = raw.strip()
             if not stripped:
                 return None
             try:
-                as_float = float(stripped)
+                float_value = float(stripped)
             except ValueError:
                 return None
-            if not as_float.is_integer():
+            if not float_value.is_integer():
                 return None
-            i = int(as_float)
-            return i if i > 0 else None
+            integer_value = int(float_value)
+            return integer_value if integer_value > 0 else None
         return None
 
     @staticmethod
@@ -181,7 +320,7 @@ class JudgeScoreArtifactsBuilder:
         Валидная строка — четыре числа в [1, 5]. Пропуск, bool, нечисловая строка
         или выход за диапазон — вся строка не участвует в bootstrap-выборке.
         """
-        scores: list[float] = []
+        score_values: list[float] = []
         for col in self._COL_SCORES:
             raw = row[col - 1].value
             if raw is None or isinstance(raw, bool):
@@ -191,186 +330,46 @@ class JudgeScoreArtifactsBuilder:
                 if not stripped:
                     return None
                 try:
-                    value = float(stripped)
+                    score_value = float(stripped)
                 except ValueError:
                     return None
             elif isinstance(raw, (int, float)):
-                value = float(raw)
+                score_value = float(raw)
             else:
                 return None
-            if not (1.0 <= value <= 5.0):
+            if not (1.0 <= score_value <= 5.0):
                 return None
-            scores.append(value)
-        return (scores[0], scores[1], scores[2], scores[3])
+            score_values.append(score_value)
+        return (score_values[0], score_values[1], score_values[2], score_values[3])
 
-    # Сборка выборок для bootstrap
-
-    def _gold_rows(self, workbook_path: Path) -> list[RowScores]:
-        """Все валидные строки из одного gold-файла в порядке следования.
-
-        Для gold bench_index не нужен: один прогон, одно наблюдение = одна строка.
-        """
-        rows: list[RowScores] = []
-        for row in self._iter_generation_rows(workbook_path):
-            if not self._has_question(row):
-                continue
-            parsed = self._parse_scores(row)
-            if parsed is not None:
-                rows.append(parsed)
-        return rows
-
-    def _rows_indexed_by_bench(self, workbook_path: Path) -> dict[int, RowScores]:
-        """Прочитать один noise-файл в словарь {bench_index: scores}.
-
-        При дублирующемся индексе сохраняется первая строка.
-        """
-        by_index: dict[int, RowScores] = {}
-        for row in self._iter_generation_rows(workbook_path):
-            if not self._has_question(row):
-                continue
-            key = self._bench_index(row[self._COL_BENCH_INDEX - 1].value)
-            if key is None:
-                continue
-            parsed = self._parse_scores(row)
-            if parsed is None:
-                continue
-            if key not in by_index:
-                by_index[key] = parsed
-        return by_index
-
-    def _noise_rows(self, model: str, rag_mode: str) -> list[RowScores]:
-        """Построить bootstrap-выборку для noise: одно наблюдение = один вопрос.
-
-        1. Читаем три noise-прогона в словари {bench_index: scores}.
-        2. Берём пересечение ключей — только вопросы, оценённые во всех трёх прогонах.
-        3. Для каждого вопроса и каждой метрики отдельно усредняем три значения.
-        Это убирает между-прогоновую дисперсию до bootstrap, не увеличивая n.
-        """
-        noise_root = self._results / model / "results_noise_bench"
-        per_run = [
-            self._rows_indexed_by_bench(noise_root / run / f"{self._REVIEW_PREFIX}{rag_mode}.xlsx")
-            for run in self._NOISE_RUN_DIRS
-        ]
-
-        common_keys = set(per_run[0].keys())
-        for run_map in per_run[1:]:
-            common_keys &= set(run_map.keys())
-
-        if not common_keys:
-            return []
-
-        averaged: list[RowScores] = []
-        for key in sorted(common_keys):
-            # stack: матрица (3 прогона × 4 метрики); mean по оси прогонов даёт 4 числа.
-            stack = np.array([per_run[0][key], per_run[1][key], per_run[2][key]], dtype=np.float64)
-            col_means = np.mean(stack, axis=0)
-            averaged.append(
-                (
-                    float(col_means.flat[0]),
-                    float(col_means.flat[1]),
-                    float(col_means.flat[2]),
-                    float(col_means.flat[3]),
-                )
-            )
-        return averaged
-
-    # Bootstrap
-
-    def _bootstrap_ci(self, values: np.ndarray, rng: np.random.Generator) -> dict[str, float | int]:
+    def _bootstrap_ci(self, values: np.ndarray, random_generator: np.random.Generator) -> dict[str, float | int]:
         """Непараметрический percentile bootstrap для одного вектора наблюдений.
 
         Возвращает mean, ci_low, ci_high (границы двустороннего ДИ уровня 1 - alpha) и n.
         При пустом векторе — nan по всем полям.
         """
-        n = int(values.size)
-        if n == 0:
+        n_observations = int(values.size)
+        if n_observations == 0:
             return {"mean": float("nan"), "ci_low": float("nan"), "ci_high": float("nan"), "n": 0}
 
         sample_mean = float(values.mean())
 
-        boot_means = np.empty(self._num_bootstrap, dtype=np.float64)
-        for i in range(self._num_bootstrap):
-            boot_means[i] = float(rng.choice(values, size=n, replace=True).mean())
+        bootstrap_sample_means = np.empty(self._num_bootstrap, dtype=np.float64)
+        for sample_index in range(self._num_bootstrap):
+            bootstrap_sample_means[sample_index] = float(
+                random_generator.choice(values, size=n_observations, replace=True).mean()
+            )
 
-        lo = 100.0 * self._alpha / 2.0
-        hi = 100.0 * (1.0 - self._alpha / 2.0)
-        ci = np.percentile(boot_means, [lo, hi])
+        lower_percentile = 100.0 * self._alpha / 2.0
+        upper_percentile = 100.0 * (1.0 - self._alpha / 2.0)
+        ci = np.percentile(bootstrap_sample_means, [lower_percentile, upper_percentile])
 
         return {
             "mean": sample_mean,
             "ci_low": float(ci.flat[0]),
             "ci_high": float(ci.flat[1]),
-            "n": n,
+            "n": n_observations,
         }
-
-    def _bootstrap_records_for(
-        self,
-        sink: list[dict[str, object]],
-        model: str,
-        bench: str,
-        rag_mode: str,
-        rows: list[RowScores],
-        rng: np.random.Generator,
-    ) -> None:
-        """Добавить четыре записи (по одной на метрику) для одной комбинации (модель, bench, режим).
-
-        Матрица (n × 4) нарезается по столбцам — каждый столбец идёт в _bootstrap_ci отдельно,
-        что обеспечивает независимые ДИ для каждой метрики при общем rng-состоянии.
-        """
-        matrix = np.asarray(rows, dtype=np.float64) if rows else np.zeros((0, 4), dtype=np.float64)
-
-        for j, metric_name in enumerate(self._METRIC_KEYS):
-            column = matrix[:, j] if matrix.size else np.zeros(0, dtype=np.float64)
-            sink.append(
-                {
-                    "model": model,
-                    "bench": bench,
-                    "mode": rag_mode,
-                    "metric": metric_name,
-                    **self._bootstrap_ci(column, rng),
-                    "n_bootstrap": self._num_bootstrap,
-                    "alpha": self._alpha,
-                }
-            )
-
-    def _write_bootstrap_json(self) -> Path:
-        if not self._results.is_dir():
-            logger.error("Нет каталога results: %s", self._results)
-            sys.exit(1)
-
-        records = self._build_bootstrap_records()
-        path = (self._results / self._BOOTSTRAP_JSON).resolve()
-        _ = path.write_text(json.dumps(records, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        logger.info("Bootstrap CI: %s записей → %s", len(records), path)
-        return path
-
-    def _build_bootstrap_records(self) -> list[dict[str, object]]:
-        """Внешний цикл: (модель × режим) → gold + noise → четыре метрики каждый.
-
-        Единый rng передаётся через все вызовы, чтобы воспроизводимость работала
-        при фиксированном random_seed независимо от порядка операций.
-        """
-        rng = np.random.default_rng(self._random_seed)
-        out: list[dict[str, object]] = []
-
-        for model in self._MODELS:
-            for rag_mode in self._RAG_MODES:
-                gold_path = (
-                    self._results / model / "results_gold_bench" / f"{self._REVIEW_PREFIX}{rag_mode}.xlsx"
-                )
-                self._bootstrap_records_for(out, model, "gold", rag_mode, self._gold_rows(gold_path), rng)
-
-                noise_rows = self._noise_rows(model, rag_mode)
-                if not noise_rows:
-                    logger.warning(
-                        "Noise: пустое пересечение по bench_index для %s / %s — в JSON будут nan",
-                        model,
-                        rag_mode,
-                    )
-                self._bootstrap_records_for(out, model, "noise", rag_mode, noise_rows, rng)
-
-        out.sort(key=lambda r: (str(r["model"]), str(r["bench"]), str(r["mode"]), str(r["metric"])))
-        return out
 
 
 def main() -> None:

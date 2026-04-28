@@ -1,0 +1,190 @@
+{
+  "generation_by_model": [
+    {
+      "model": "gemma_31",
+      "bench": "gold",
+      "mode": "baseline",
+      "n_questions": 453,
+      "n_pooled_rows": 453,
+      "generation_latency_mean_ms": 34568.27150110375,
+      "generation_latency_ci_low_ms": 33227.12135264901,
+      "generation_latency_ci_high_ms": 36023.07627593818,
+      "n_bootstrap": 10000,
+      "alpha": 0.05
+    },
+    {
+      "model": "gemma_31",
+      "bench": "gold",
+      "mode": "full",
+      "n_questions": 453,
+      "n_pooled_rows": 453,
+      "generation_latency_mean_ms": 34550.85942604856,
+      "generation_latency_ci_low_ms": 33017.06155022075,
+      "generation_latency_ci_high_ms": 36202.9624392936,
+      "n_bootstrap": 10000,
+      "alpha": 0.05
+    },
+    {
+      "model": "gemma_31",
+      "bench": "noise",
+      "mode": "baseline",
+      "n_questions": 310,
+      "n_pooled_rows": 930,
+      "generation_latency_mean_ms": 35275.009989247315,
+      "generation_latency_ci_low_ms": 33987.574574193546,
+      "generation_latency_ci_high_ms": 36684.149720161295,
+      "n_bootstrap": 10000,
+      "alpha": 0.05
+    },
+    {
+      "model": "gemma_31",
+      "bench": "noise",
+      "mode": "full",
+      "n_questions": 310,
+      "n_pooled_rows": 930,
+      "generation_latency_mean_ms": 34751.81349462365,
+      "generation_latency_ci_low_ms": 32108.361125806452,
+      "generation_latency_ci_high_ms": 38297.961866666665,
+      "n_bootstrap": 10000,
+      "alpha": 0.05
+    },
+    {
+      "model": "nemotron",
+      "bench": "gold",
+      "mode": "baseline",
+      "n_questions": 453,
+      "n_pooled_rows": 453,
+      "generation_latency_mean_ms": 27692.28653421634,
+      "generation_latency_ci_low_ms": 26030.60231953643,
+      "generation_latency_ci_high_ms": 29511.782524282564,
+      "n_bootstrap": 10000,
+      "alpha": 0.05
+    },
+    {
+      "model": "nemotron",
+      "bench": "gold",
+      "mode": "full",
+      "n_questions": 453,
+      "n_pooled_rows": 453,
+      "generation_latency_mean_ms": 27618.078101545256,
+      "generation_latency_ci_low_ms": 26198.253976269312,
+      "generation_latency_ci_high_ms": 29144.531126379687,
+      "n_bootstrap": 10000,
+      "alpha": 0.05
+    },
+    {
+      "model": "nemotron",
+      "bench": "noise",
+      "mode": "baseline",
+      "n_questions": 310,
+      "n_pooled_rows": 930,
+      "generation_latency_mean_ms": 31504.284645161286,
+      "generation_latency_ci_low_ms": 29731.25979086021,
+      "generation_latency_ci_high_ms": 33437.08329489247,
+      "n_bootstrap": 10000,
+      "alpha": 0.05
+    },
+    {
+      "model": "nemotron",
+      "bench": "noise",
+      "mode": "full",
+      "n_questions": 310,
+      "n_pooled_rows": 930,
+      "generation_latency_mean_ms": 26356.988268817204,
+      "generation_latency_ci_low_ms": 24891.3809,
+      "generation_latency_ci_high_ms": 27940.025714247313,
+      "n_bootstrap": 10000,
+      "alpha": 0.05
+    },
+    {
+      "model": "qwen_35",
+      "bench": "gold",
+      "mode": "baseline",
+      "n_questions": 453,
+      "n_pooled_rows": 453,
+      "generation_latency_mean_ms": 26665.486666666664,
+      "generation_latency_ci_low_ms": 26056.19783167771,
+      "generation_latency_ci_high_ms": 27293.243538631345,
+      "n_bootstrap": 10000,
+      "alpha": 0.05
+    },
+    {
+      "model": "qwen_35",
+      "bench": "gold",
+      "mode": "full",
+      "n_questions": 453,
+      "n_pooled_rows": 453,
+      "generation_latency_mean_ms": 26893.167527593818,
+      "generation_latency_ci_low_ms": 26102.840899558498,
+      "generation_latency_ci_high_ms": 27725.569522075053,
+      "n_bootstrap": 10000,
+      "alpha": 0.05
+    },
+    {
+      "model": "qwen_35",
+      "bench": "noise",
+      "mode": "baseline",
+      "n_questions": 310,
+      "n_pooled_rows": 930,
+      "generation_latency_mean_ms": 27287.608569892473,
+      "generation_latency_ci_low_ms": 26737.545377419356,
+      "generation_latency_ci_high_ms": 27876.631872580645,
+      "n_bootstrap": 10000,
+      "alpha": 0.05
+    },
+    {
+      "model": "qwen_35",
+      "bench": "noise",
+      "mode": "full",
+      "n_questions": 310,
+      "n_pooled_rows": 930,
+      "generation_latency_mean_ms": 23692.72531182796,
+      "generation_latency_ci_low_ms": 23063.984788978494,
+      "generation_latency_ci_high_ms": 24356.40357983871,
+      "n_bootstrap": 10000,
+      "alpha": 0.05
+    }
+  ],
+  "other_by_bench_mode": [
+    {
+      "bench": "gold",
+      "mode": "baseline",
+      "n_questions": 453,
+      "other_latency_mean_ms": 1221.9373215599705,
+      "other_latency_ci_low_ms": 1189.2405851729213,
+      "other_latency_ci_high_ms": 1257.2185389992642,
+      "n_bootstrap": 10000,
+      "alpha": 0.05
+    },
+    {
+      "bench": "gold",
+      "mode": "full",
+      "n_questions": 453,
+      "other_latency_mean_ms": 1659.2679543782194,
+      "other_latency_ci_low_ms": 1544.8915121412801,
+      "other_latency_ci_high_ms": 1793.8684668874168,
+      "n_bootstrap": 10000,
+      "alpha": 0.05
+    },
+    {
+      "bench": "noise",
+      "mode": "baseline",
+      "n_questions": 310,
+      "other_latency_mean_ms": 1477.3803978494623,
+      "other_latency_ci_low_ms": 1437.693347311828,
+      "other_latency_ci_high_ms": 1522.0678491935485,
+      "n_bootstrap": 10000,
+      "alpha": 0.05
+    },
+    {
+      "bench": "noise",
+      "mode": "full",
+      "n_questions": 310,
+      "other_latency_mean_ms": 2118.651749103942,
+      "other_latency_ci_low_ms": 1507.7386361111107,
+      "other_latency_ci_high_ms": 3205.7754142473104,
+      "n_bootstrap": 10000,
+      "alpha": 0.05
+    }
+  ]
+}
