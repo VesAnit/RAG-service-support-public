@@ -1,35 +1,34 @@
-"""Сборка retrieval_bootstrap_ci.json и retrieval_bootstrap_ci_summary.md по MRR и Hit@1.
+"""Build retrieval_bootstrap_ci.json and retrieval_bootstrap_ci_summary.md for MRR and Hit@1.
 
-Входные данные
---------------
-benchmark_rag_results_<mode>.json под results/, по одному на (модель, режим, [прогон]).
-В каждой записи ожидаются поля:
-  bench_index           — целый порядковый номер вопроса (общий для всех моделей и прогонов);
-  chunk_id              — str или list[str] с эталонными point_id; отсутствие поля = нет эталона,
-                          запись не участвует в расчёте;
-  retrieval_rr_initial  — float: reciprocal rank первого подходящего чанка в initial-контексте;
-  retrieval_rank_initial — int | None: 1-based ранг.
+Inputs
+------
+benchmark_rag_results_<mode>.json under results/, one per (model, mode, [run]).
+Each record must include:
+  bench_index            — integer question index (shared across models and runs);
+  chunk_id               — str or list[str] of gold point_id; missing field = no gold,
+                           record excluded;
+  retrieval_rr_initial   — float: reciprocal rank of the first matching chunk in initial context;
+  retrieval_rank_initial — int | None: 1-based rank.
 
-Методология
+Methodology
 -----------
-Ретривал не зависит от LLM-модели (один и тот же RAG-конвейер): для каждого вопроса
-(bench_index) все модели дают одинаковый ретривал-результат. Поэтому перед bootstrap
-мы пулируем наблюдения по bench_index — сквозь все модели и (для noise) все прогоны —
-и усредняем RR и индикатор Hit@1 по каждому вопросу. Единица bootstrap-выборки —
-один вопрос после усреднения.
+Retrieval does not depend on the LLM model (same RAG pipeline): for each question
+(bench_index) all models yield the same retrieval result. Before bootstrap we pool
+observations by bench_index — across all models and (for noise) all runs — and average
+RR and Hit@1 per question. Bootstrap unit = one question after averaging.
 
-Gold: 3 модели × 1 прогон = 3 строки на вопрос → средние RR и Hit@1 на вопрос.
-Noise: 3 модели × 3 прогона = 9 строк на вопрос → средние RR и Hit@1 на вопрос.
-Bootstrap: percentile 95% ДИ по набору усреднённых вопросов (n ≈ 453 gold, ≈ 310 noise).
+Gold: 3 models × 1 run = 3 rows per question → mean RR and Hit@1 per question.
+Noise: 3 models × 3 runs = 9 rows per question → mean RR and Hit@1 per question.
+Bootstrap: percentile 95% CI over averaged questions (n ≈ 453 gold, ≈ 310 noise).
 
-MRR: reciprocal rank первого подходящего чанка в initial-контексте — обычно RR = 1/r при
-ранге эталона r; если эталон не найден или в JSON нет числового RR, в расчёт
-подставляется 0 (как в поле retrieval_rr_initial). После пула на bench_index по вопросу
-усредняются RR; итоговая MRR в артефакте — среднее по вопросам этих усреднённых RR.
+MRR: reciprocal rank of the first matching chunk in initial context — typically RR = 1/r
+when the gold rank is r; if gold is not found or JSON has no numeric RR, use 0 (as in
+retrieval_rr_initial). After pooling by bench_index, RR values are averaged per question;
+reported MRR is the mean over questions of those per-question averages.
 
-Hit@1: 1, если ранг эталона ≤ 1; иначе 0. При отсутствующем ранге (эталон не найден) — 0.
+Hit@1: 1 if gold rank ≤ 1; else 0. If rank is missing (gold not found) — 0.
 
-Запуск: uv run python scripts/build_retrieval_score_artifacts.py
+Run: uv run python scripts/build_retrieval_score_artifacts.py
 """
 
 from __future__ import annotations
@@ -61,9 +60,9 @@ SUMMARY_MD: Final[str] = "retrieval_bootstrap_ci_summary.md"
 
 
 class RetrievalBootstrapBuilder:
-    """Читает benchmark_rag_results JSON, пулирует по bench_index и считает bootstrap CI.
+    """Reads benchmark_rag_results JSON, pools by bench_index, and computes bootstrap CIs.
 
-    Публичная точка входа — build(): записывает JSON и MD, возвращает их пути.
+    Public entry point — build(): writes JSON and MD, returns their paths.
     """
 
     def __init__(
@@ -80,7 +79,7 @@ class RetrievalBootstrapBuilder:
         self._random_seed: int = random_seed
 
     def build(self) -> tuple[Path, Path]:
-        """Пересобрать JSON и MD; вернуть их пути."""
+        """Rebuild JSON and MD; return their paths."""
         records = self._build_records()
         json_path = self._write_json(records)
         md_path = self._write_md(records)
@@ -94,7 +93,7 @@ class RetrievalBootstrapBuilder:
                 mrr_per_question, hit_at_1_per_question, total_pooled_rows = self._per_question_averages(result_file_paths)
 
                 if not mrr_per_question:
-                    logger.warning("Нет данных для %s / %s", bench, mode)
+                    logger.warning("No data for %s / %s", bench, mode)
 
                 mrr_stats = self._bootstrap_ci(mrr_per_question)
                 hit_at_1_stats = self._bootstrap_ci(hit_at_1_per_question)
@@ -119,7 +118,7 @@ class RetrievalBootstrapBuilder:
     def _per_question_averages(
         self, result_file_paths: list[Path]
     ) -> tuple[list[float], list[float], int]:
-        """Усредняет RR и Hit@1 по bench_index; возвращает (mrr_vec, hit_vec, n_pooled_rows)."""
+        """Average RR and Hit@1 by bench_index; return (mrr_vec, hit_vec, n_pooled_rows)."""
         by_bench_index: dict[int, list[tuple[float, float]]] = defaultdict(list)
         total_pooled_rows = 0
         for result_path in result_file_paths:
@@ -139,14 +138,14 @@ class RetrievalBootstrapBuilder:
         return mrr_per_question, hit_at_1_per_question, total_pooled_rows
 
     def _gold_paths(self, mode: str) -> list[Path]:
-        """Пути к JSON одного режима для всех трёх моделей (gold bench)."""
+        """Paths to one mode's JSON for all three models (gold bench)."""
         return [
             self._results / model / "results_gold_bench" / f"benchmark_rag_results_{mode}.json"
             for model in MODELS
         ]
 
     def _noise_paths(self, mode: str) -> list[Path]:
-        """Пути ко всем 9 файлам (3 модели × 3 прогона) для noise bench."""
+        """Paths to all 9 files (3 models × 3 runs) for noise bench."""
         return [
             self._results / model / "results_noise_bench" / run_dir / f"benchmark_rag_results_{mode}.json"
             for model in MODELS
@@ -155,13 +154,13 @@ class RetrievalBootstrapBuilder:
 
     @staticmethod
     def _load_records_with_gold(path: Path) -> list[dict[str, Any]]:
-        """Загрузить JSON и вернуть только записи с непустым chunk_id (есть эталон)."""
+        """Load JSON and return only records with non-empty chunk_id (has gold)."""
         if not path.is_file():
             return []
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
-            logger.warning("Пропуск %s: %s", path, exc)
+            logger.warning("Skipping %s: %s", path, exc)
             return []
         if not isinstance(data, list):
             return []
@@ -169,7 +168,7 @@ class RetrievalBootstrapBuilder:
 
     @staticmethod
     def _bench_index(record: dict[str, Any]) -> int | None:
-        """Нормализовать bench_index к int > 0 или вернуть None."""
+        """Normalize bench_index to int > 0 or return None."""
         raw = record.get("bench_index")
         if raw is None or isinstance(raw, bool):
             return None
@@ -188,20 +187,20 @@ class RetrievalBootstrapBuilder:
 
     @staticmethod
     def _reciprocal_rank(record: dict[str, Any]) -> float:
-        """Reciprocal rank initial-контекста; при отсутствии эталона — 0."""
+        """Reciprocal rank in initial context; 0 if no gold."""
         raw_value = record.get("retrieval_rr_initial")
         return float(raw_value) if isinstance(raw_value, (int, float)) else 0.0
 
     @staticmethod
     def _hit_at_1(record: dict[str, Any]) -> float:
-        """1.0 если эталон на первом месте, иначе 0.0."""
+        """1.0 if gold at rank 1, else 0.0."""
         rank = record.get("retrieval_rank_initial")
         if rank is None:
             return 0.0
         return 1.0 if int(rank) <= 1 else 0.0
 
     def _bootstrap_ci(self, values: list[float]) -> dict[str, float | int]:
-        """Percentile bootstrap: mean + 95% ДИ. При пустом списке — nan."""
+        """Percentile bootstrap: mean + 95% CI. Empty list → nan."""
         n_questions = len(values)
         if n_questions == 0:
             return {"mean": float("nan"), "ci_low": float("nan"), "ci_high": float("nan"), "n": 0}
@@ -228,33 +227,31 @@ class RetrievalBootstrapBuilder:
     def _write_json(self, records: list[dict[str, Any]]) -> Path:
         path = (self._results / BOOTSTRAP_JSON).resolve()
         _ = path.write_text(json.dumps(records, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        logger.info("Retrieval bootstrap CI: %s записей → %s", len(records), path)
+        logger.info("Retrieval bootstrap CI: %s records → %s", len(records), path)
         return path
 
     def _write_md(self, records: list[dict[str, Any]]) -> Path:
-        """Краткая MD-таблица для коммита в репо."""
+        """Short MD table for the repository."""
 
         def fmt(value: Any, digits: int = 4) -> str:
             if value is None or (isinstance(value, float) and (value != value)):  # nan check
                 return "—"
             return f"{float(value):.{digits}f}"
 
-        bench_ru = {"gold": "золотой", "noise": "шумный"}
-
         lines = [
-            "# Retrieval: MRR и Hit@1 (bootstrap 95% ДИ)",
+            "# Retrieval: MRR and Hit@1 (bootstrap 95% CI)",
             "",
-            "Пул всех моделей на каждый вопрос (bench_index). "
-            "Gold: 3 модели × 1 прогон. Noise: 3 модели × 3 прогона. "
-            "На каждый вопрос — среднее RR и Hit@1 по пулу; bootstrap по вопросам. "
-            "n — число уникальных вопросов после пулинга.",
+            "Pool all models per question (bench_index). "
+            "Gold: 3 models × 1 run. Noise: 3 models × 3 runs. "
+            "Per question — mean RR and Hit@1 over the pool; bootstrap over questions. "
+            "n — number of unique questions after pooling.",
             "",
-            "| Бенч | Режим | n вопросов | MRR | 95% ДИ MRR | Hit@1 | 95% ДИ Hit@1 |",
+            "| Bench | Mode | n questions | MRR | 95% CI MRR | Hit@1 | 95% CI Hit@1 |",
             "| --- | --- | ---: | ---: | --- | ---: | --- |",
         ]
         for record in records:
             lines.append(
-                f"| {bench_ru.get(record['bench'], record['bench'])} "
+                f"| {record['bench']} "
                 f"| {record['mode']} "
                 f"| {record['n_questions']} "
                 f"| {fmt(record['mrr_mean'])} "
@@ -263,11 +260,11 @@ class RetrievalBootstrapBuilder:
                 f"| [{fmt(record['hit_at_1_ci_low'])}; {fmt(record['hit_at_1_ci_high'])}] |"
             )
 
-        lines += ["", f"Источник: `results/{BOOTSTRAP_JSON}`"]
+        lines += ["", f"Source: `results/{BOOTSTRAP_JSON}`"]
 
         path = (self._results / SUMMARY_MD).resolve()
         _ = path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-        logger.info("MD-сводка → %s", path)
+        logger.info("MD summary → %s", path)
         return path
 
 
@@ -275,7 +272,7 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     results_dir = RESULTS_DIR.resolve()
     if not results_dir.is_dir():
-        logger.error("Нет каталога results: %s", results_dir)
+        logger.error("Missing results directory: %s", results_dir)
         sys.exit(1)
     _ = RetrievalBootstrapBuilder(results_dir).build()
 

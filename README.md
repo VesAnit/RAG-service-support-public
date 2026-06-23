@@ -1,35 +1,36 @@
 # AI Assistant Benchmarks (public)
 
-Репозиторий с результатами бенчмарка RAG-ассистента: сырые данные в `results/`, скрипты агрегации метрик с bootstrap 95% ДИ и ноутбук для визуализации оценок LLM-судьи.
+Repository with RAG assistant benchmark results: raw data in `results/`, metric aggregation scripts with bootstrap 95% CIs, and a notebook for LLM-judge score charts.
 
-## Содержимое
+## Contents
 
-| Каталог / файл | Назначение |
+| Directory / file | Purpose |
 | --- | --- |
-| `results/` | JSON и XLSX по моделям, режимам и бенчам (gold / noise) |
-| `scripts/` | CLI для пересборки артефактов bootstrap и сводок |
-| `notebooks/` | Ноутбук для отрисовки графиков `judge_score_bootstrap_ci.json` |
-| `charts/` | Графики |
-| `prompts/` | Промпт для судьи генерации |
+| `results/` | JSON and XLSX by model, mode, and bench (gold / noise) |
+| `scripts/` | CLI to rebuild bootstrap artifacts and summaries |
+| `notebooks/` | Charts from `judge_score_bootstrap_ci.json` |
+| `charts/` | Exported figures |
+| `prompts/` | Generation judge prompt |
 
-## Скрипты
+## Scripts
 
-Из корня репозитория (нужен [uv](https://github.com/astral-sh/uv) или окружение с зависимостями из pyproject.toml):
+From the repository root (requires [uv](https://github.com/astral-sh/uv) or an environment with dependencies from `pyproject.toml`):
 
+```bash
 uv run python scripts/build_judge_score_artifacts.py
 uv run python scripts/build_retrieval_score_artifacts.py
 uv run python scripts/build_latency_artifacts.py
+```
 
+Input fields and methodology are documented in each script’s module docstring.
 
-Подробности по полям входных файлов и методологии — в docstring-ах соответствующих скриптов.
-
-## Демонстрация ассистента
+## Assistant demo
 
 <details>
-<summary><strong>Видео: демо работы ассистента</strong> (архитектура, методика оценки RAG и генерации LLM)</summary>
+<summary><strong>Video: assistant demo</strong> (architecture, RAG and LLM generation evaluation methodology)</summary>
 
-Запись с пояснениями по архитектуре и методике оценки качества работы RAG и генерации на стороне LLM:
+Recording with explanations of the architecture and methodology for evaluating RAG quality and LLM-side generation:
 
-[Открыть на Google Drive](https://drive.google.com/file/d/16AmSomzB3d26k32He_tMljM02JFkYznW/view?usp=drive_link)
+[Open on Google Drive](https://drive.google.com/file/d/16AmSomzB3d26k32He_tMljM02JFkYznW/view?usp=drive_link)
 
 </details>

@@ -1,31 +1,31 @@
-"""Сборка latency_bootstrap_ci.json и latency_bootstrap_ci_summary.md по benchmark JSON.
+"""Build latency_bootstrap_ci.json and latency_bootstrap_ci_summary.md from benchmark JSON.
 
-Входные данные
---------------
-benchmark_rag_results_<mode>.json под results/<model>/results_{gold|noise}_bench/.
-Ожидаемые поля на строку:
-  bench_index        — идентификатор вопроса;
+Inputs
+------
+benchmark_rag_results_<mode>.json under results/<model>/results_{gold|noise}_bench/.
+Expected fields per row:
+  bench_index        — question id;
   latency_total_ms   — total latency;
-  latency_embed_ms   — latency на эмбеддинг;
-  latency_llm_ms     — latency LLM-генерации.
+  latency_embed_ms   — embedding latency;
+  latency_llm_ms     — LLM generation latency.
 
-Метрики
+Metrics
 -------
 generation_latency_ms = latency_total_ms - latency_embed_ms
 other_latency_ms      = latency_total_ms - latency_llm_ms
 
-Методология
+Methodology
 -----------
-Единица bootstrap-выборки — вопрос (bench_index) после усреднения:
-  - внутри одного файла дубликаты bench_index усредняются;
-  - generation (таблица 1): по (model, bench, mode), bootstrap по вопросам;
-  - other (таблица 2): по (bench, mode), сначала среднее по моделям на вопрос,
-    затем bootstrap по вопросам;
-  - noise: для каждого model сначала среднее по 3 прогонам на вопрос (пересечение ключей).
+Bootstrap unit = question (bench_index) after averaging:
+  - duplicate bench_index within one file are averaged;
+  - generation (table 1): per (model, bench, mode), bootstrap over questions;
+  - other (table 2): per (bench, mode), mean across models per question first,
+    then bootstrap over questions;
+  - noise: per model, mean over 3 runs per question (intersection of keys).
 
-ДИ: непараметрический percentile bootstrap, 95% (alpha=0.05), B=10_000.
+CI: nonparametric percentile bootstrap, 95% (alpha=0.05), B=10_000.
 
-Запуск: uv run python scripts/build_latency_artifacts.py
+Run: uv run python scripts/build_latency_artifacts.py
 """
 
 from __future__ import annotations
@@ -57,7 +57,7 @@ SUMMARY_MD: Final[str] = "latency_bootstrap_ci_summary.md"
 
 
 class LatencyBootstrapBuilder:
-    """Считает средние latency-метрики и bootstrap ДИ по model/bench/mode."""
+    """Compute mean latency metrics and bootstrap CIs by model/bench/mode."""
 
     def __init__(
         self,
@@ -83,7 +83,7 @@ class LatencyBootstrapBuilder:
         for model in MODELS:
             available_modes = self._detect_modes(model)
             if not available_modes:
-                logger.warning("Нет benchmark_rag_results_*.json в results_gold_bench для %s", model)
+                logger.warning("No benchmark_rag_results_*.json in results_gold_bench for %s", model)
                 continue
             for mode in available_modes:
                 gold_generation_values, _, gold_question_count = self._gold_vectors(model, mode)
@@ -105,7 +105,7 @@ class LatencyBootstrapBuilder:
 
                 noise_generation_values, _, noise_question_count, noise_pooled_row_count = self._noise_vectors(model, mode)
                 if noise_question_count == 0:
-                    logger.warning("Noise: пустое пересечение bench_index для %s / %s", model, mode)
+                    logger.warning("Noise: empty bench_index intersection for %s / %s", model, mode)
                 noise_generation_stats = self._bootstrap_ci(noise_generation_values)
                 generation_by_model.append(
                     {
@@ -231,7 +231,7 @@ class LatencyBootstrapBuilder:
         try:
             loaded: object = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
-            logger.warning("Пропуск %s: %s", path, exc)
+            logger.warning("Skipping %s: %s", path, exc)
             return {}
         if not isinstance(loaded, list):
             return {}
@@ -320,7 +320,7 @@ class LatencyBootstrapBuilder:
         path = (self._results / BOOTSTRAP_JSON).resolve()
         _ = path.write_text(json.dumps(records, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         logger.info(
-            "Latency bootstrap CI: %s generation + %s other записей → %s",
+            "Latency bootstrap CI: %s generation + %s other records → %s",
             len(records["generation_by_model"]),
             len(records["other_by_bench_mode"]),
             path,
@@ -335,16 +335,15 @@ class LatencyBootstrapBuilder:
                 return f"{float(value):.{digits}f}"
             return "—"
 
-        bench_ru = {"gold": "золотой", "noise": "шумный"}
         lines = [
-            "# Latency: generation vs other (bootstrap 95% ДИ)",
+            "# Latency: generation vs other (bootstrap 95% CI)",
             "",
             "generation_latency_ms = latency_total_ms - latency_embed_ms",
             "other_latency_ms = latency_total_ms - latency_llm_ms",
             "",
-            "## 1) Generation latency (по model + bench + mode)",
+            "## 1) Generation latency (by model + bench + mode)",
             "",
-            "| Модель | Бенч | Режим | Generation, ms | 95% ДИ |",
+            "| Model | Bench | Mode | Generation, ms | 95% CI |",
             "| --- | --- | --- | ---: | --- |",
         ]
         for record in records["generation_by_model"]:
@@ -355,7 +354,7 @@ class LatencyBootstrapBuilder:
                 [
                     "",
                     model,
-                    bench_ru.get(bench, bench),
+                    bench,
                     mode,
                     fmt(record["generation_latency_mean_ms"]),
                     f"[{fmt(record['generation_latency_ci_low_ms'])}; {fmt(record['generation_latency_ci_high_ms'])}]",
@@ -365,9 +364,9 @@ class LatencyBootstrapBuilder:
             lines.append(row)
         lines += [
             "",
-            "## 2) Other latency (по bench + mode, усреднение по моделям per-question)",
+            "## 2) Other latency (by bench + mode, mean across models per question)",
             "",
-            "| Бенч | Режим | Other, ms | 95% ДИ |",
+            "| Bench | Mode | Other, ms | 95% CI |",
             "| --- | --- | ---: | --- |",
         ]
         for record in records["other_by_bench_mode"]:
@@ -376,7 +375,7 @@ class LatencyBootstrapBuilder:
             row = " | ".join(
                 [
                     "",
-                    bench_ru.get(bench, bench),
+                    bench,
                     mode,
                     fmt(record["other_latency_mean_ms"]),
                     f"[{fmt(record['other_latency_ci_low_ms'])}; {fmt(record['other_latency_ci_high_ms'])}]",
@@ -384,11 +383,11 @@ class LatencyBootstrapBuilder:
                 ]
             )
             lines.append(row)
-        lines += ["", f"Источник: `results/{BOOTSTRAP_JSON}`"]
+        lines += ["", f"Source: `results/{BOOTSTRAP_JSON}`"]
 
         path = (self._results / SUMMARY_MD).resolve()
         _ = path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-        logger.info("MD-сводка → %s", path)
+        logger.info("MD summary → %s", path)
         return path
 
 
@@ -396,7 +395,7 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     results_dir = RESULTS_DIR.resolve()
     if not results_dir.is_dir():
-        logger.error("Нет каталога results: %s", results_dir)
+        logger.error("Missing results directory: %s", results_dir)
         sys.exit(1)
     _ = LatencyBootstrapBuilder(results_dir).build()
 

@@ -1,16 +1,16 @@
-"""Скрипты агрегации метрик по результатам бенчмарка.
+"""Benchmark result aggregation scripts.
 
 build_judge_score_artifacts.py
-    Пересобирает judge_score_bootstrap_ci.json в results/ (средние оценок LLM-судьи
-    + percentile bootstrap 95% ДИ по моделям, режимам и метрикам).
+    Rebuilds judge_score_bootstrap_ci.json in results/ (LLM-judge score means
+    + percentile bootstrap 95% CIs by model, mode, and metric).
 
 build_retrieval_score_artifacts.py
-    Пересобирает retrieval_bootstrap_ci.json и retrieval_bootstrap_ci_summary.md в results/
-    (MRR и Hit@1 + bootstrap 95% ДИ; пул всех моделей на вопрос).
+    Rebuilds retrieval_bootstrap_ci.json and retrieval_bootstrap_ci_summary.md in results/
+    (MRR and Hit@1 + bootstrap 95% CIs; pool all models per question).
 
 build_latency_artifacts.py
-    Пересобирает latency_bootstrap_ci.json и latency_bootstrap_ci_summary.md в results/
-    (latency на генерацию и «всё остальное» + bootstrap 95% ДИ по model/bench/mode).
+    Rebuilds latency_bootstrap_ci.json and latency_bootstrap_ci_summary.md in results/
+    (generation vs other latency + bootstrap 95% CIs by model/bench/mode).
 
-Ноутбук notebooks/judge_scores_bar_charts.ipynb читает judge_score_bootstrap_ci.json.
+The notebook notebooks/judge_scores_bar_charts.ipynb reads judge_score_bootstrap_ci.json.
 """

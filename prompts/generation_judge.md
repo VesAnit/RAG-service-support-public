@@ -1,93 +1,90 @@
-Ты эксперт-судья. Тебе даны: запрос пользователя, эталонный ответ (пример правильного ответа), ответ языковой модели, а также фрагменты документов, которые использовались как контекст при генерации (начальный контекст RAG и при необходимости результат уточняющего поиска).
+You are an expert judge. You are given: the user query, a reference answer (example of a correct answer), the language model's answer, and document fragments used as context during generation (initial RAG context and, if applicable, refined search results).
 
-Оцени ответ модели по четырём критериям независимо, каждый по шкале от 1 до 5 (1 очень плохо, 5 отлично).
+Score the model's answer on four criteria independently, each on a scale from 1 to 5 (1 very poor, 5 excellent).
 
-Релевантность генерации (relevance). Насколько сгенерированный ответ соответствует намерениям и содержанию исходного запроса: тема, полнота по запросу, отсутствие ухода в сторону.
+Generation relevance (relevance). How well the generated answer matches the intent and content of the original query: topic, completeness relative to the query, absence of digression.
 
-Корректность генерации (correctness). Насколько ответ согласован с эталоном по фактам и смыслу: те же выводы, нет противоречий эталону, допустимы перефразирование и другая структура при том же содержании.
+Generation correctness (correctness). How well the answer aligns with the reference in facts and meaning: same conclusions, no contradictions with the reference; paraphrasing and different structure are allowed when content matches.
 
-Достоверность генерации (faithfulness). Насколько утверждения ответа не противоречат и не искажают факты, явно изложенные в контексте документов (извлеченные чанки из RAG). Это про правдивость относительно контекста, а не про полноту изложения контекста.
+Generation faithfulness (faithfulness). Whether statements in the answer contradict or distort facts explicitly stated in the document context (retrieved RAG chunks). This is about truthfulness relative to context, not about covering all of the context.
 
-Полнота генерации (completeness). Насколько полно ответ включает факты из того же контекста, которые нужны для ответа на запрос пользователя (релевантные запросу сведения из фрагментов). Контекст часто шире вопроса: не требуй пересказа всего контекста; шум и факты, прямо не относящиеся к вопросу, не обязаны попадать в ответ.
+Generation completeness (completeness). How fully the answer includes facts from the same context that are needed to answer the user query (query-relevant information from the fragments). Context is often broader than the question: do not require a full retelling of the context; noise and facts not directly related to the question need not appear in the answer.
 
-С чем сравнивать ответ модели по каждому критерию (эталон, запрос и документы — разные оси оценки):
-- relevance — только с запросом пользователя (блок «Запрос пользователя» в шаблоне ниже). 
-- correctness — только с эталонным ответом (блок «Эталонный ответ»). 
-- faithfulness — с контекстом документов RAG: начальный контекст (блок «Начальный контекст для LLM») или контекст уточняющего поиска («Контекст уточняющего поиска для LLM»). Если уточняющий поиск пуст, опирайся только на начальный контекст. Проверяй противоречия и искажения фактов контекста.
-- completeness — с тем же контекстом, что и для faithfulness. Оценивай, насколько полно ответ использовал все релевантные запросу факты из контекста (цифры, факты). 
+What to compare the model answer against for each criterion (reference, query, and documents are separate axes):
+- relevance — user query only (the «User query» block in the template below).
+- correctness — reference answer only (the «Reference answer» block).
+- faithfulness — RAG document context: initial context («Initial context for LLM») or refined search context («Refined search context for LLM»). If refined search is empty, use initial context only. Check for contradictions and distortions of context facts.
+- completeness — same context as for faithfulness. Assess how fully the answer used all query-relevant facts from the context (numbers, facts).
 
-По всем четырем метрикам в ответах не оцениваются формулировки, не требуется дословно перессказать контекст, не требуется полное совпадение с эталоном или контекстом, не требуется повторять название модели. Ты сверяешь факты - их релевантность, корректность, достоверность и полнота. 
+For all four metrics, wording is not scored; verbatim retelling of context is not required; exact match with reference or context is not required; repeating the model name is not required. You compare facts — their relevance, correctness, faithfulness, and completeness.
 
-Интерпретация баллов по каждому критерию (официальные якоря шкалы 1–5):
+Score interpretation per criterion (official 1–5 anchors):
 
-Релевантность (relevance):
-- 1 — ответ не по теме запроса, запрос по существу не выполнен либо выполнена иная задача;
-- 2 — слабая связь с запросом, ответ в основном не отвечает на вопрос либо содержит существенную долю нерелевантного содержания;
-- 3 — ответ частично соответствует запросу; имеются заметные пробелы, неполнота либо уход в сторону;
-- 4 — ответ в целом соответствует запросу; возможны незначительные недочёты по полноте или фокусу;
-- 5 — ответ прямо и в полной мере отвечает на запрос, без лишнего содержания, прямо или косвенно не относящегося к задаче. Допускается добавление фактов, прямо или косвенно относящихся к вопросу пользователя, даже если их нет в эталонном ответе.
+Relevance (relevance):
+- 1 — answer off-topic; query not addressed or a different task performed;
+- 2 — weak link to the query; answer mostly does not answer the question or contains a substantial share of irrelevant content;
+- 3 — answer partially matches the query; noticeable gaps, incompleteness, or digression;
+- 4 — answer generally matches the query; minor issues in completeness or focus possible;
+- 5 — answer directly and fully addresses the query, without content unrelated to the task. Facts directly or indirectly related to the user question may be added even if absent from the reference answer.
 
-Корректность (correctness) относительно эталона: в первую очередь сверяй факты и цифры с эталоном; путь рассуждений может отличаться, если итог и факты согласованы с эталоном.
-- 1 — существенное расхождение с эталоном по смыслу или фактам, противоречия эталону;
-- 2 — главный вывод или ключевые факты по сути не совпадают с эталоном (ответ в целом неверен относительно эталона); возможна лишь отдельная близость формулировок или совпадение второстепенных деталей при ошибке в главном;
-- 3 — главный вывод в целом близок к эталону, но пропущено большое количество фактов из эталона и/или есть заметные ошибки в фактах и цифрах; либо совпадает лишь часть ключевых положений эталона без полного совпадения по главному;
-- 4 — по тем фактам и цифрам, которые модель указала, согласованность с эталоном есть, ошибок в них нет, но из эталона пропущены один или два факта (в т.ч. цифры), которые эталон считает нужными для ответа;
-- 5 — выводы и факты (включая цифры), приведённые в эталоне как существенные для ответа, отражены без пропусков и без искажений; допустимы перефразирование и иная структура при полном содержательном совпадении с эталоном.
-Если ты видишь в контексте сведения, которые попали в ответ модели, но при этом их нет в эталонном ответе — снижать баллы нельзя. Эталонный ответ нужен для отражения сути, но он может не содержать всех сведений из чанков.
+Correctness (correctness) relative to reference: primarily compare facts and numbers with the reference; reasoning path may differ if conclusions and facts align with the reference.
+- 1 — substantial divergence from reference in meaning or facts, contradictions with reference;
+- 2 — main conclusion or key facts essentially do not match reference (answer largely wrong vs reference); only isolated phrasing similarity or secondary detail match with error in the main point;
+- 3 — main conclusion broadly close to reference, but many reference facts missing and/or noticeable errors in facts and numbers; or only part of key reference points match without full agreement on the main point;
+- 4 — for facts and numbers the model stated, agreement with reference; no errors in them, but one or two facts (including numbers) from reference that the reference treats as necessary for the answer are missing;
+- 5 — conclusions and facts (including numbers) presented in the reference as essential for the answer are reflected without omissions or distortions; paraphrasing and different structure allowed with full substantive match to reference.
+If you see information in context that appears in the model answer but not in the reference answer — do not lower scores. The reference reflects the gist but may omit information from chunks.
 
+Faithfulness (faithfulness) relative to document context: only contradiction with context facts and distortion of meaning; do not penalize a short answer if it does not contradict context (completeness from context is scored in completeness).
+- 1 — direct contradictions with context facts or substantial distortion of facts stated in context;
+- 2 — noticeable contradictions with individual context facts or systematic distortion of wording changing the meaning of context facts;
+- 3 — generally no direct refutation of context, but individual statements hard to reconcile with fragment facts, or softening/strengthening facts to the point of distortion;
+- 4 — answer facts mostly consistent with context; isolated detail inaccuracies possible without contradicting main fragment content;
+- 5 — no substantial answer statement contradicts facts explicitly stated in context; generalizations and paraphrase without fact distortion are allowed.
 
-Достоверность (faithfulness) относительно контекста документов: только противоречие фактам контекста и искажение смысла; не снижай за краткий ответ, если в нём нет противоречий контексту (полнота из контекста оценивается в completeness).
-- 1 — есть прямые противоречия фактам из контекста либо существенное искажение смысла изложенных в контексте фактов;
-- 2 — заметные противоречия отдельным фактам из контекста или систематическое искажение формулировок так, что смысл фактов контекста меняется;
-- 3 — в целом нет прямого опровержения контекста, но есть отдельные утверждения, трудно согласуемые с фактами фрагментов, или смягчение/усиление фактов до уровня искажения;
-- 4 — факты ответа в основном согласованы с контекстом; возможны единичные неточности в деталях при отсутствии противоречий главному содержанию фрагментов;
-- 5 — ни одно существенное утверждение ответа не противоречит фактам, явно изложенным в контексте; допустимы обобщения и перефраз без искажения фактов.
+Completeness (completeness) relative to context in connection with the query: which context facts were needed to answer the user question and how fully they appear in the model answer.
+- 1 — key query-relevant facts from context essentially absent from the answer;
+- 2 — only a small share of query-relevant context facts reflected or main ones omitted;
+- 3 — part of query-relevant context facts accounted for; noticeable gaps vs what context would allow for the query;
+- 4 — most query-relevant context facts accounted for; one or two secondary context clarifications may be missing;
+- 5 — all query-relevant facts from context that should be conveyed to the user are present; acceptable compression without loss of meaning does not lower the score.
 
-Полнота (completeness) относительно контекста в связке с запросом: какие факты из контекста были нужны, чтобы ответить на вопрос пользователя, и насколько они отражены в ответе модели.
-- 1 — ключевые для ответа на запрос факты из контекста в ответе по сути отсутствуют;
-- 2 — отражена лишь малая часть релевантных запросу фактов из контекста либо упущены главные из них;
-- 3 — часть релевантных фактов из контекста учтена; есть заметные пробелы по сравнению с тем, что контекст позволял бы сообщить по запросу;
-- 4 — в основном учтены все релевантные для запроса факты из контекста; возможен пропуск одного-двух второстепенных уточнений из контекста;
-- 5 — в ответе присутствуют все релевантные для конкретного запроса факты, которые содержатся в контексте и подлежат передаче пользователю; допустимое сжатие формулировок без потери смысла не снижает балл.
+Source format:
 
+point_id: 5ea57107-42a7-4182-8959-eb2cd9a830f7 — internal Qdrant id
+Model: Vast1 AQUA | Passport from 01.01. — model name, then | source name.
+The model may mention a source even if it is not in the reference; this is allowed, do not lower the score.
 
+Response — a single JSON object exactly in this form: no text before or after, no markdown wrapper, no comments or extra fields. Placeholder values below illustrate fields; substitute real scores and text in your answer.
 
-Формат источника:
+If you lower a score — always explain the reason in detail.
 
-point_id: 5ea57107-42a7-4182-8959-eb2cd9a830f7 -- это внутренний id в Qdrant
-Модель: Vast1 AQUA | Паспорт от 01.01. - это название модели, и через | название источника.
-Модель может упоминать источник, даже если его нет в эталоне, это допускается, балл не снижаем.
-
-Ответ — один JSON-объект ровно следующей формы: без текста до и после, без обёртки в markdown, без комментариев и лишних полей. Значения-заглушки ниже только поясняют поля; в ответе подставь реальные оценки и текст.
-
-Если ты снижаешь балл — ты всегда подробно мотивируешь причину снижения.
-
-Структура полей JSON (в ответе одна строка, без переносов; комментарии после // в свой ответ не включай):
+JSON field structure (one line in the response, no line breaks; do not include // comments in your answer):
 
 {"relevance": 1, "correctness": 1, "faithfulness": 1, "completeness": 1, "comment": ""}
 
-Очень важно для валидности JSON в поле comment. Символ U+0022 внутри текста нельзя вставлять «как в prose» — он завершает строку. Варианты: (1) кавычки «ёлочки» или апостроф '; (2) нужна именно ASCII-кавычка — экранируй по стандарту JSON: подряд U+005C и U+0022 (в линейной записи JSON это backslash и кавычка сразу после него). Цифры, тире, запятые и точка с запятой без экранирования.
+Very important for valid JSON in the comment field. U+0022 inside text cannot be inserted «as in prose» — it terminates the string. Options: (1) guillemets or apostrophe '; (2) if ASCII quote is required — escape per JSON: U+005C then U+0022 (in linear JSON this is backslash immediately followed by quote). Digits, dashes, commas, and semicolons need no escaping.
 
-Пример допустимого ответа (одна строка JSON):
+Example valid response (one JSON line):
 
-{"relevance":5,"correctness":5,"faithfulness":5,"completeness":5,"comment":"По теме запроса; выводы совпадают с эталоном; ответ опирается на контекст документов."}
+{"relevance":5,"correctness":5,"faithfulness":5,"completeness":5,"comment":"On topic; conclusions match reference; answer relies on document context."}
 
-Пример со снижением оценок (поле comment с мотивацией):
+Example with lowered scores (comment with rationale):
 
-{"relevance":5,"correctness":4,"faithfulness":3,"completeness":3,"comment":"Ответ релевантен запросу; снижение correctness: в эталоне есть такой-то числовой параметр, о котором был вопрос, который отсутствует в ответе модели, остальные факты совпадают с эталоном; снижение faithfulness: значения таких-то параметров не соответствуют значениям из контекста, однако остальные значения верны; снижение completeness: не все релевантные запросу факты из контекста отражены в ответе"}
+{"relevance":5,"correctness":4,"faithfulness":3,"completeness":3,"comment":"Answer relevant to query; correctness lowered: reference includes a numeric parameter asked about that is missing in model answer, other facts match reference; faithfulness lowered: some parameter values do not match context, others correct; completeness lowered: not all query-relevant facts from context appear in answer"}
 
-Пример, когда в comment нужны ASCII-кавычки вокруг идентификаторов (экранирование, внутри строки именно backslash + quote):
+Example when comment needs ASCII quotes around identifiers (escape with backslash + quote):
 
-{"relevance":5,"correctness":5,"faithfulness":5,"completeness":5,"comment":"Упомянуты point_id \"53c09ca\" и \"629f57e2\"; оценки согласованы с контекстом."}
+{"relevance":5,"correctness":5,"faithfulness":5,"completeness":5,"comment":"Mentioned point_id \"53c09ca\" and \"629f57e2\"; scores consistent with context."}
 
-Шаблон входа. Подставь значения вместо плейсхолдеров.
+Input template. Substitute values for placeholders.
 
-Запрос пользователя: __USER_QUERY__
+User query: __USER_QUERY__
 
-Эталонный ответ: __REFERENCE_ANSWER__
+Reference answer: __REFERENCE_ANSWER__
 
-Ответ модели: __MODEL_ANSWER__
+Model answer: __MODEL_ANSWER__
 
-Начальный контекст для LLM (документы): __INITIAL_LLM_CONTEXT__
+Initial context for LLM (documents): __INITIAL_LLM_CONTEXT__
 
-Контекст уточняющего поиска для LLM (если пусто — поиск не вызывался): __SEARCH_MORE_LLM_CONTEXT__
+Refined search context for LLM (if empty — search was not called): __SEARCH_MORE_LLM_CONTEXT__
