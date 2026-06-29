@@ -7,10 +7,10 @@ other_latency_ms = latency_total_ms - latency_llm_ms
 
 | Model | Bench | Mode | Generation, ms | 95% CI |
 | --- | --- | --- | ---: | --- |
- | gemma_31 | gold | baseline | 34568.27 | [33227.12; 36023.08] | 
- | gemma_31 | gold | full | 34550.86 | [33017.06; 36202.96] | 
- | gemma_31 | noise | baseline | 35275.01 | [33987.57; 36684.15] | 
- | gemma_31 | noise | full | 34751.81 | [32108.36; 38297.96] | 
+ | gemma_4 | gold | baseline | 34568.27 | [33227.12; 36023.08] | 
+ | gemma_4 | gold | full | 34550.86 | [33017.06; 36202.96] | 
+ | gemma_4 | noise | baseline | 35275.01 | [33987.57; 36684.15] | 
+ | gemma_4 | noise | full | 34751.81 | [32108.36; 38297.96] | 
  | nemotron | gold | baseline | 27692.29 | [26030.60; 29511.78] | 
  | nemotron | gold | full | 27618.08 | [26198.25; 29144.53] | 
  | nemotron | noise | baseline | 31504.28 | [29731.26; 33437.08] | 

@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
 RESULTS_DIR: Final[Path] = REPOSITORY_ROOT / "results"
 
-MODELS: Final[tuple[str, str, str]] = ("gemma_31", "nemotron", "qwen_35")
+MODELS: Final[tuple[str, str, str]] = ("gemma_4", "nemotron", "qwen_35")
 RAG_MODES: Final[tuple[str, str]] = ("baseline", "full")
 NOISE_RUN_DIRS: Final[tuple[str, str, str]] = (
     "first_results_noise_bench",

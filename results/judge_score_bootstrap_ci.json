@@ -1,6 +1,6 @@
 [
   {
-    "model": "gemma_31",
+    "model": "gemma_4",
     "bench": "gold",
     "mode": "baseline",
     "metric": "completeness",
@@ -12,7 +12,7 @@
     "alpha": 0.05
   },
   {
-    "model": "gemma_31",
+    "model": "gemma_4",
     "bench": "gold",
     "mode": "baseline",
     "metric": "correctness",
@@ -24,7 +24,7 @@
     "alpha": 0.05
   },
   {
-    "model": "gemma_31",
+    "model": "gemma_4",
     "bench": "gold",
     "mode": "baseline",
     "metric": "faithfulness",
@@ -36,7 +36,7 @@
     "alpha": 0.05
   },
   {
-    "model": "gemma_31",
+    "model": "gemma_4",
     "bench": "gold",
     "mode": "baseline",
     "metric": "relevance",
@@ -48,7 +48,7 @@
     "alpha": 0.05
   },
   {
-    "model": "gemma_31",
+    "model": "gemma_4",
     "bench": "gold",
     "mode": "full",
     "metric": "completeness",
@@ -60,7 +60,7 @@
     "alpha": 0.05
   },
   {
-    "model": "gemma_31",
+    "model": "gemma_4",
     "bench": "gold",
     "mode": "full",
     "metric": "correctness",
@@ -72,7 +72,7 @@
     "alpha": 0.05
   },
   {
-    "model": "gemma_31",
+    "model": "gemma_4",
     "bench": "gold",
     "mode": "full",
     "metric": "faithfulness",
@@ -84,7 +84,7 @@
     "alpha": 0.05
   },
   {
-    "model": "gemma_31",
+    "model": "gemma_4",
     "bench": "gold",
     "mode": "full",
     "metric": "relevance",
@@ -96,7 +96,7 @@
     "alpha": 0.05
   },
   {
-    "model": "gemma_31",
+    "model": "gemma_4",
     "bench": "noise",
     "mode": "baseline",
     "metric": "completeness",
@@ -108,7 +108,7 @@
     "alpha": 0.05
   },
   {
-    "model": "gemma_31",
+    "model": "gemma_4",
     "bench": "noise",
     "mode": "baseline",
     "metric": "correctness",
@@ -120,7 +120,7 @@
     "alpha": 0.05
   },
   {
-    "model": "gemma_31",
+    "model": "gemma_4",
     "bench": "noise",
     "mode": "baseline",
     "metric": "faithfulness",
@@ -132,7 +132,7 @@
     "alpha": 0.05
   },
   {
-    "model": "gemma_31",
+    "model": "gemma_4",
     "bench": "noise",
     "mode": "baseline",
     "metric": "relevance",
@@ -144,7 +144,7 @@
     "alpha": 0.05
   },
   {
-    "model": "gemma_31",
+    "model": "gemma_4",
     "bench": "noise",
     "mode": "full",
     "metric": "completeness",
@@ -156,7 +156,7 @@
     "alpha": 0.05
   },
   {
-    "model": "gemma_31",
+    "model": "gemma_4",
     "bench": "noise",
     "mode": "full",
     "metric": "correctness",
@@ -168,7 +168,7 @@
     "alpha": 0.05
   },
   {
-    "model": "gemma_31",
+    "model": "gemma_4",
     "bench": "noise",
     "mode": "full",
     "metric": "faithfulness",
@@ -180,7 +180,7 @@
     "alpha": 0.05
   },
   {
-    "model": "gemma_31",
+    "model": "gemma_4",
     "bench": "noise",
     "mode": "full",
     "metric": "relevance",

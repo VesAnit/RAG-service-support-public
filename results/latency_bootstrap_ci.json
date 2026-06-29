@@ -1,7 +1,7 @@
 {
   "generation_by_model": [
     {
-      "model": "gemma_31",
+      "model": "gemma_4",
       "bench": "gold",
       "mode": "baseline",
       "n_questions": 453,
@@ -13,7 +13,7 @@
       "alpha": 0.05
     },
     {
-      "model": "gemma_31",
+      "model": "gemma_4",
       "bench": "gold",
       "mode": "full",
       "n_questions": 453,
@@ -25,7 +25,7 @@
       "alpha": 0.05
     },
     {
-      "model": "gemma_31",
+      "model": "gemma_4",
       "bench": "noise",
       "mode": "baseline",
       "n_questions": 310,
@@ -37,7 +37,7 @@
       "alpha": 0.05
     },
     {
-      "model": "gemma_31",
+      "model": "gemma_4",
       "bench": "noise",
       "mode": "full",
       "n_questions": 310,

@@ -87,7 +87,7 @@ class JudgeScoreArtifactsBuilder:
         "completeness",
     )
 
-    _MODELS: Final[tuple[str, str, str]] = ("gemma_31", "nemotron", "qwen_35")
+    _MODELS: Final[tuple[str, str, str]] = ("gemma_4", "nemotron", "qwen_35")
     _RAG_MODES: Final[tuple[str, str]] = ("baseline", "full")
 
     # Subdirectory names for three noise runs under results/<model>/results_noise_bench/.
