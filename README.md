@@ -3,7 +3,8 @@
 Repository with RAG assistant benchmark results: raw data in `results/`, metric aggregation scripts with bootstrap 95% CIs, and a notebook for LLM-judge score charts.
 Recording with explanations of the architecture and methodology for evaluating RAG quality and LLM-side generation:
 
-**[Video](https://drive.google.com/file/d/11xzxuPyrSyIUKUr6uaqt9ztrllFWJ2k-/view?usp=drive_link)**
+**[Video](https://drive.google.com/file/d/11xzxuPyrSyIUKUr6uaqt9ztrllFWJ2k-/view?usp=drive_link)** 
+(*The practical cap was about 30-40 000 tokens for context per request)
 
 ## Contents
 
